@@ -1,1 +1,1 @@
-# ElementsTemplates
+# Code templates for native and managed element implementations
