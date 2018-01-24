@@ -2,9 +2,17 @@
 
 This repository contains informations on how to write elements for Zenodys Computing Engine orchestration system.
 
+Zenodys is Industry 4.0 platform that contains two parts:
+* Visual Development Tool for creating projects by simply drag'n'drop and connecting visual elements into workflows. It is IDE  that runs in browser 
+* Computing Engine, orchestration tool that runs on edge and executes visual scripts created in Visual Development Tool
+
+Visual Development Tool features:
+* visual step by step remote workflow debugging and values inspection
+* remote project deployment to Zenodys Computing Engine
+* multiuser project development
+* and many more
+
 Element is plugin, loaded and executed at runtime by orchestration engine (Zenodys Computing engine).
-Zenodys Visual Development tool is IDE that runs in browser where all application logic is created by simply drag'n'drop and connecting elements into workflows.
-Zenodys Visual Development Tool supports features like visual workflow debugging, transferring project from browser to Zenodys Computing Engine...
 
 Each element is constructed from two parts:
 * UI (HTML that runs in IDE) where user can set properties and connect element into workflows.

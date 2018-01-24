@@ -60,10 +60,24 @@ namespace ZenSmTransaction
             // Smart contract address ("0x97a93e68fa58513facb2b702a97597cab97afd6f") 
             _contractAddress = element.GetElementProperty("SMART_CONTRACT_ADDRESS");
             
-            // Smart contract byte code. ("0x6060604052341561000f57600080fd5b336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555061014d8061005e6000396000f30060606040526004361061004c576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806316772aff14610051578063b11ed2521461007d575b600080fd5b341561005c57600080fd5b61007b60048080359060200190919080359060200190919050506100a6565b005b341561008857600080fd5b610090610113565b6040518082815260200191505060405180910390f35b6000809054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614151561010157600080fd5b81600181905550806002819055505050565b6000600254600154019050905600a165627a7a7230582084ccd403eb50c39d82f09eea3cb38ecf546e399983a4e8247806a241262880df0029")
+            // Smart contract byte code. ("0x6060604052341561000f57600080fd5b336000806101000a81548173ffffffffffffffffffffffffffffffffff
+            //                            ffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555061014d8061005e6000396000
+            //                            f30060606040526004361061004c576000357c01000000000000000000000000000000000000000000000000000000
+            //                            00900463ffffffff16806316772aff14610051578063b11ed2521461007d575b600080fd5b341561005c57600080f
+            //                            d5b61007b60048080359060200190919080359060200190919050506100a6565b005b341561008857600080fd5b61
+            //                            0090610113565b6040518082815260200191505060405180910390f35b6000809054906101000a900473fffffffff
+            //                            fffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373fffffffffff
+            //                            fffffffffffffffffffffffffffff1614151561010157600080fd5b81600181905550806002819055505050565b60
+            //                            00600254600154019050905600a165627a7a7230582084ccd403eb50c39d82f09eea3cb38ecf546e399983a4e8247
+            //                            806a241262880df0029")
              _byteCode = element.GetElementProperty("BYTE_CODE"); 
             
-            // Smart contract ABI ("[{""constant"":false,""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},{""name"":""washingMachineConsumption"",""type"":""int256""}],""name"":""saveConsumptions"",""outputs"":[],""payable"":false,""stateMutability"":""nonpayable"",""type"":""function""},{""constant"":false,""inputs"":[],""name"":""getConsumptions"",""outputs"":[{""name"":""sumConsumption"",""type"":""int256""}],""payable"":false,""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[],""payable"":false,""stateMutability"":""nonpayable"",""type"":""constructor""}]")
+              // Smart contract ABI ("[{""constant"":false,""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},
+            //                      {""name"":""washingMachineConsumption"",""type"":""int256""}],""name"":""saveConsumptions"",""outputs"":[],
+            //                      ""payable"":false,""stateMutability"":""nonpayable"",""type"":""function""},{""constant"":false,""inputs"":[],
+            //                      ""name"":""getConsumptions"",""outputs"":[{""name"":""sumConsumption"",""type"":""int256""}],""payable"":false,
+            //                      ""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[],""payable"":false,
+            //                      ""stateMutability"":""nonpayable"",""type"":""constructor""}]")
             _abi = element.GetElementProperty("ABI");
             
             // Name of smart contract function to be called ("saveConsumptions")
@@ -118,8 +132,13 @@ namespace ZenSmTransaction
             web3.TransactionManager.DefaultGas =  BigInteger.Parse(_defaultGas);
             web3.TransactionManager.DefaultGasPrice = Nethereum.Signer.Transaction.DEFAULT_GAS_PRICE;
             
-            var unlockAccountResult = await web3.Personal.UnlockAccount.SendRequestAsync(_senderAddress, _password, _unlockAccountDuration);
-            var transactionHash = await web3.Eth.GetContract(_abi, _contractAddress).GetFunction(_functionName).SendTransactionAsync(_senderAddress, values);
+            var unlockAccountResult = await web3.Personal.UnlockAccount
+                                                         .SendRequestAsync(_senderAddress, _password, _unlockAccountDuration);
+            
+            var transactionHash = await web3.Eth.GetContract(_abi, _contractAddress)
+                                                .GetFunction(_functionName)
+                                                .SendTransactionAsync(_senderAddress, values);
+            
             // Developed on private Geth network where we were only miners.... 
             var receipt = await MineAndGetReceiptAsync(web3, transactionHash);
 
@@ -151,7 +170,8 @@ namespace ZenSmTransaction
         {
             object[] args = new object[_scripts.ScriptDoc.DocumentNode.Descendants("code").Count()];
             for (int i = 0; i < _scripts.ScriptDoc.DocumentNode.Descendants("code").Count(); i++)
-                args[i] = _scripts.ZenCsScript.RunCustomCode(_scripts.ScriptDoc.DocumentNode.Descendants("code").ElementAt(i).Attributes["id"].Value);
+                args[i] = _scripts.ZenCsScript.RunCustomCode(_scripts.ScriptDoc.DocumentNode
+                                              .Descendants("code").ElementAt(i).Attributes["id"].Value);
             
             return args;
         }
@@ -169,7 +189,9 @@ namespace ZenSmTransaction
                     foreach (string args in Regex.Split(element.GetElementProperty("CONTRACT_PARAMS"), "#100#"))
                         sFunctions += ZenCsScriptCore.GetFunction("return " + elements + ";");
 
-                    _scripts = ZenCsScriptCore.Initialize(sFunctions, elements, element, Path.Combine("tmp", "SmartContractTransaction", element.ID + ".zen"), ParentBoard, element.GetElementProperty("PRINT_CODE") == "1");
+                    _scripts = ZenCsScriptCore.Initialize(sFunctions, elements, element, 
+                                                        Path.Combine("tmp", "SmartContractTransaction", element.ID + ".zen"), 
+                                                        ParentBoard, element.GetElementProperty("PRINT_CODE") == "1");
                 }
             }
         }

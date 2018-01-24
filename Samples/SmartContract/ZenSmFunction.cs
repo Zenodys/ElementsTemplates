@@ -56,7 +56,12 @@ namespace ZenSmFunction
             // Smart contract address ("0x97a93e68fa58513facb2b702a97597cab97afd6f") 
             _contractAddress = element.GetElementProperty("SMART_CONTRACT_ADDRESS");
             
-            // Smart contract ABI ("[{""constant"":false,""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},{""name"":""washingMachineConsumption"",""type"":""int256""}],""name"":""saveConsumptions"",""outputs"":[],""payable"":false,""stateMutability"":""nonpayable"",""type"":""function""},{""constant"":false,""inputs"":[],""name"":""getConsumptions"",""outputs"":[{""name"":""sumConsumption"",""type"":""int256""}],""payable"":false,""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[],""payable"":false,""stateMutability"":""nonpayable"",""type"":""constructor""}]")
+            // Smart contract ABI ("[{""constant"":false,""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},
+            //                      {""name"":""washingMachineConsumption"",""type"":""int256""}],""name"":""saveConsumptions"",""outputs"":[],
+            //                      ""payable"":false,""stateMutability"":""nonpayable"",""type"":""function""},{""constant"":false,""inputs"":[],
+            //                      ""name"":""getConsumptions"",""outputs"":[{""name"":""sumConsumption"",""type"":""int256""}],""payable"":false,
+            //                      ""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[],""payable"":false,
+            //                      ""stateMutability"":""nonpayable"",""type"":""constructor""}]")
             _abi = element.GetElementProperty("ABI");
             
             // Name of smart contract function to be called ("getConsumptions")
@@ -165,7 +170,8 @@ namespace ZenSmFunction
         {
             object[] args = new object[_scripts.ScriptDoc.DocumentNode.Descendants("code").Count()];
             for (int i = 0; i < _scripts.ScriptDoc.DocumentNode.Descendants("code").Count(); i++)
-                args[i] = _scripts.ZenCsScript.RunCustomCode(_scripts.ScriptDoc.DocumentNode.Descendants("code").ElementAt(i).Attributes["id"].Value);
+                args[i] = _scripts.ZenCsScript.RunCustomCode(_scripts.ScriptDoc.DocumentNode
+                                                                              .Descendants("code").ElementAt(i).Attributes["id"].Value);
             
             return args;
         }
@@ -183,7 +189,8 @@ namespace ZenSmFunction
                     foreach (string args in Regex.Split(element.GetElementProperty("CONTRACT_PARAMS"), "#100#"))
                         sFunctions += ZenCsScriptCore.GetFunction("return " + elements + ";");
 
-                    _scripts = ZenCsScriptCore.Initialize(sFunctions, elements, element, Path.Combine("tmp", "SmartContractFunction", element.ID + ".zen"), null, element.GetElementProperty("PRINT_CODE") == "1");
+                    _scripts = ZenCsScriptCore.Initialize(sFunctions, elements, element, 
+                               Path.Combine("tmp", "SmartContractFunction", element.ID + ".zen"), null, element.GetElementProperty("PRINT_CODE") == "1");
                 }
             }
         }
