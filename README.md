@@ -1,4 +1,7 @@
 # Code templates for element implementations
+
+This repository contains informations on how to write elements for Zenodys Computing Engine orchestration system.
+
 Element is plugin, loaded and executed at runtime by orchestration engine (Zenodys Computing engine).
 Zenodys Visual Development tool is IDE that runs in browser where all application logic is created by simply drag'n'drop and connecting elements into workflows.
 Zenodys Visual Development Tool supports features like visual workflow debugging, transferring project from browser to Zenodys Computing Engine...
