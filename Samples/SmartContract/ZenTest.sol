@@ -2,7 +2,7 @@ pragma solidity 0.4.19;
 
 contract ZenExample {
 	address owner;
-    int currentTvConsumption;
+        int currentTvConsumption;
 	int currentWashingMachineConsumption;
 
 	function ZenExample() {
@@ -20,7 +20,7 @@ contract ZenExample {
 	    return currentTvConsumption + currentWashingMachineConsumption;
 	}
 
-    function saveConsumptions(int tvConsumption, int washingMachineConsumption) public
+        function saveConsumptions(int tvConsumption, int washingMachineConsumption) public
 	onlyOwner() 
 	{
 		currentTvConsumption = tvConsumption;
