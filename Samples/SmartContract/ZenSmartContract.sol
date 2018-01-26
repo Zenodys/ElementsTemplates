@@ -1,11 +1,11 @@
 pragma solidity 0.4.19;
 
-contract ZenExample {
+contract ZenSmartContract {
 	address owner;
         int currentTvConsumption;
 	int currentWashingMachineConsumption;
 
-	function ZenExample() {
+	function ZenSmartContract() {
 		owner = msg.sender;
 	}
 	
