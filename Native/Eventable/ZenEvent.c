@@ -61,7 +61,7 @@ struct eventContextParamsStruct event_context;
 */
 EXTERN_DLL_EXPORT int onImplementationInit(char *params)
 {
-	return 0;
+    return 0;
 }
 
 /**
@@ -78,19 +78,18 @@ EXTERN_DLL_EXPORT int onNodePreInit(Node* node)
 {
     // Add element to collection 
     _nodeIds[_nodeListCnt] = malloc(sizeof(Node));
-	_nodeIds[_nodeListCnt] = node;
+    _nodeIds[_nodeListCnt] = node;
 	
     // Create fake event.
     // First set condition met and result fields
     _nodeIds[_nodeListCnt]->isConditionMet = 1;
-	_nodeIds[_nodeListCnt]->lastResultType = RESULT_TYPE_INT;
+    _nodeIds[_nodeListCnt]->lastResultType = RESULT_TYPE_INT;
 
     // Then save element context
-	event_context.data = &_nodeListCnt;
-	event_context.node = _nodeIds[_nodeListCnt];
+    event_context.data = &_nodeListCnt;
+    event_context.node = _nodeIds[_nodeListCnt];
 		
-	// And inform Computing Engine about event.
-    
+    // And inform Computing Engine about event.
     // Event is processed immediately if event buffer is empty.
     
     // Otherwise, if event generator frequency is higher then event handling,
@@ -101,8 +100,7 @@ EXTERN_DLL_EXPORT int onNodePreInit(Node* node)
     common_push_event_to_buffer(&event_context);
     
     _nodeListCnt++;
-
-	return 0;
+    return 0;
 }
 
 /**
