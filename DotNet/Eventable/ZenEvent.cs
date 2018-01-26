@@ -2,16 +2,16 @@
 *                           ZENODYS EVENTABLE ELEMENT
 *
 * Zenodys is Industry 4.0 platform that contains two parts:
-*     1) Visual Development Tool for creating projects by simply drag'n'drop and connecting 
+*     1) Workflow Builder for creating projects by simply drag'n'drop and connecting 
 *     visual elements into workflows. It is IDE  that runs in browser 
 *     2) Computing Engine, orchestration tool that runs on edge and executes visual scripts 
-*     created in Visual Development Tool
+*     created in Workflow Builder
 *
-* Visual Development Tool features:
-*     1) visual step by step remote workflow debugging and values inspection
-*     2) remote project deployment to Zenodys Computing Engine
-*     3) multiuser project development
-*     4) and many more
+* Workflow Builder features:
+*     1) Visual step by step remote workflow debugging and values inspection
+*     2) Remote project deployment to Zenodys Computing Engine
+*     3) Multiuser project development
+*     4) And many more
 *
 * Element is plugin, loaded and executed at runtime by orchestration engine (Zenodys Computing engine).
 *
@@ -29,7 +29,7 @@
 *
 * Computing Engine has two implementations: 
 *     1) .NET Framework  that supports elements written in .NET Framework and it's Mono compatible.
-*     2) unmanaged C with unbeatable performance and portability in mind. It supports elements written in C/C++. 
+*     2) Unmanaged C with unbeatable performance and portability in mind. It supports elements written in C/C++. 
 *        Unmanaged engine also supports .Net Core Framework elements, but performance and portability is decreased 
 *        when those are used in project.
 *
@@ -38,9 +38,9 @@
 * It demonstrates responding to events from another process.
 * 
 * See also:
-*   -  template for managed action element  /DotNet/Action/ZenAction.cs
-*   -  template for unmanaged eventable element  /Native/Eventable/ZenEvent.c
-*   -  template for unmanaged action element  /Native/Action/ZenAction.c
+*   -  Template for managed action element  /DotNet/Action/ZenAction.cs
+*   -  Template for unmanaged eventable element  /Native/Eventable/ZenEvent.c
+*   -  Template for unmanaged action element  /Native/Action/ZenAction.c
 *
 */
 
@@ -132,7 +132,7 @@ namespace ZenEvent
         /**
         * Handle output from process. Note that more "logical" elements can share same implementation.
         *
-        * For example, elements with id's "ButtonOn" and "ButtonOff" that are defined in Zenodys Visual Development Tool,
+        * For example, elements with id's "ButtonOn" and "ButtonOff" that are defined in Zenodys Workflow Builder,
         * share same implementation - ZenButton.
         *
         * This event is fired for all elements that share same implementation.

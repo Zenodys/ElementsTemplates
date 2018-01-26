@@ -1,18 +1,18 @@
 # Code templates for element implementations
 
-This repository contains informations on how to write elements for Zenodys Computing Engine orchestration system.
+This repository contains informations on how to write elements for Zenodys Computing Engine.
 
 Zenodys is Industry 4.0 platform that contains two parts:
-* Visual Development Tool for creating projects by simply drag'n'drop and connecting visual elements into workflows. It is IDE  that runs in browser 
-* Computing Engine, orchestration tool that runs on edge and executes visual scripts created in Visual Development Tool
+* Workflow Builder for creating projects by simply drag'n'drop and connecting visual elements into workflows. It is IDE  that runs in browser 
+* Computing Engine, orchestration tool that runs on edge and executes visual scripts created in Workflow Builder
 
-Visual Development Tool features:
-* visual step by step remote workflow debugging and values inspection
-* remote project deployment to Zenodys Computing Engine
-* multiuser project development
-* and many more
+Workflow Builder features:
+* Visual step by step remote workflow debugging and values inspection
+* Remote project deployment to Zenodys Computing Engine
+* Multiuser project development
+* And many more
 
-Element is plugin, loaded and executed at runtime by orchestration engine (Zenodys Computing engine).
+Element is plugin, loaded and executed at runtime by Zenodys Computing Engine.
 
 Each element is constructed from two parts:
 * UI (HTML that runs in IDE) where user can set properties and connect element into workflows.
@@ -24,4 +24,4 @@ There are two basic element types in Zenodys environment:
 
 Computing Engine has two implementations: 
 * .NET Framework  that supports elements written in .NET Framework and it's Mono compatible.
-* unmanaged C that supports elements written in C/C++ and .Net Core Framework elements
+* Unmanaged C that supports elements written in C/C++ and .Net Core Framework elements
