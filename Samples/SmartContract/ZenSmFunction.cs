@@ -56,12 +56,13 @@ namespace ZenSmFunction
             // Smart contract address ("0x97a93e68fa58513facb2b702a97597cab97afd6f") 
             _contractAddress = element.GetElementProperty("SMART_CONTRACT_ADDRESS");
             
-            // Smart contract ABI ("[{""constant"":false,""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},
+            // Smart contract ABI ([{""constant"":false,""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},
             //                      {""name"":""washingMachineConsumption"",""type"":""int256""}],""name"":""saveConsumptions"",""outputs"":[],
             //                      ""payable"":false,""stateMutability"":""nonpayable"",""type"":""function""},{""constant"":false,""inputs"":[],
             //                      ""name"":""getConsumptions"",""outputs"":[{""name"":""sumConsumption"",""type"":""int256""}],""payable"":false,
-            //                      ""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[],""payable"":false,
-            //                      ""stateMutability"":""nonpayable"",""type"":""constructor""}]")
+            //                      ""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},
+            //                      {""name"":""washingMachineConsumption"",""type"":""int256""}],""payable"":false,""stateMutability"":""nonpayable"",
+            //                      ""type"":""constructor""}])
             _abi = element.GetElementProperty("ABI");
             
             // Name of smart contract function to be called ("getConsumptions")

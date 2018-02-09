@@ -1,12 +1,16 @@
-pragma solidity 0.4.19;
+pragma solidity 0.4.18;
 
 contract ZenSmartContract {
 	address owner;
         int currentTvConsumption;
 	int currentWashingMachineConsumption;
 
-	function ZenSmartContract() {
+	function ZenSmartContract(int tvConsumption, 
+               int washingMachineConsumption) {
+		
 		owner = msg.sender;
+		currentTvConsumption = tvConsumption;
+       		currentWashingMachineConsumption = washingMachineConsumption;
 	}
 	
 	modifier onlyOwner {
@@ -15,14 +19,12 @@ contract ZenSmartContract {
 	}
 
 	function getConsumptions() public 
-	returns (int sumConsumption)
-	{
+	returns (int sumConsumption) {
 	    return currentTvConsumption + currentWashingMachineConsumption;
 	}
 
         function saveConsumptions(int tvConsumption, int washingMachineConsumption) public
-	onlyOwner() 
-	{
+	onlyOwner() {
 		currentTvConsumption = tvConsumption;
 		currentWashingMachineConsumption = washingMachineConsumption;	
 	}
