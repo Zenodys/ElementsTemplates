@@ -3,3 +3,5 @@ ZenElementsTemplates.code-workspace
 /Samples/NeoInteroperability/ZenNeoSmartContract/obj/Debug
 /Samples/NeoInteroperability/ZenNeoSmartContract/packages/Neo.SmartContract.Framework.2.3.0
 /Samples/NeoInteroperability/ZenNeoSmartContract/.vs/ZenNeoSmartContract/v15
+Samples/NeoInteroperability/ZenNeoSmartContract/.vs/config/applicationhost.config
+.vscode/settings.json
