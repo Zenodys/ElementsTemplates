@@ -4,10 +4,10 @@ namespace Neo.SmartContract
 {
     public class ZenNeoSmartContract : Framework.SmartContract
     {
-        public static int Main(int tvConsumption, int washingMachineConsumption)
+        public static int Main(int consumptions)
         {
-            Storage.Put(Storage.CurrentContext, "consumption", tvConsumption + washingMachineConsumption);
-            return tvConsumption + washingMachineConsumption;
+            Storage.Put(Storage.CurrentContext, "consumptions", consumptions);
+            return consumptions;
         }
     }
 }
