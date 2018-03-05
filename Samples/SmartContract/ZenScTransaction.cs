@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ZenSmTransaction
+namespace ZenScTransaction
 {
     /**
     *
@@ -18,7 +18,7 @@ namespace ZenSmTransaction
     * Element code is for demonstrating purposes and will be upgraded for production use.
     * Integration between Zenodys platform and Ethereum was done via great Nethereum library (https://github.com/Nethereum/Nethereum)
     */
-    public class ZenSmTransaction : IZenAction, IZenNodeInit
+    public class ZenScTransaction : IZenAction, IZenNodeInit
     {
         #region Fields
         string _senderAddress;

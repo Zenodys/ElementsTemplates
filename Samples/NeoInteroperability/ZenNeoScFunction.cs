@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Text;
 
-namespace ZenNeoSmFunction
+namespace ZenNeoScFunction
 {
     /**
     *
@@ -22,7 +22,7 @@ namespace ZenNeoSmFunction
     * Element code is for demonstrating purposes and will be upgraded for production use.
     * Integration between Zenodys platform and NEO was done via great Neo RPC library (https://seattle.github.com/CityOfZion/Neo-RPC-SharpClient)
     */
-    public class ZenNeoSmFunction : IZenAction, IZenNodeInit
+    public class ZenNeoScFunction : IZenAction, IZenNodeInit
     {
         #region Fields
         string _rpcClientUri;
