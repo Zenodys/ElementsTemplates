@@ -31,7 +31,6 @@ namespace ZenScTransaction
         string _defaultGas;
         string _messageValue;
         int _unlockAccountDuration;
-        string _byteCode;
         ZenCsScriptData _scripts;
         object _syncCsScript = new object();
         #endregion
@@ -64,18 +63,6 @@ namespace ZenScTransaction
 
             // Smart contract address ("0x97a93e68fa58513facb2b702a97597cab97afd6f") 
             _contractAddress = element.GetElementProperty("SMART_CONTRACT_ADDRESS");
-
-            // Smart contract byte code. ("0x6060604052341561000f57600080fd5b6040516040806101e083398101604052808051906020019091908051906020
-            //                             019091905050336000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffff
-            //                             ffffffffffffffffffffffffffffffff1602179055508160018190555080600281905550505061014d80610093600039
-            //                             6000f30060606040526004361061004c576000357c010000000000000000000000000000000000000000000000000000
-            //                             0000900463ffffffff16806316772aff14610051578063b11ed2521461007d575b600080fd5b341561005c57600080fd
-            //                             5b61007b60048080359060200190919080359060200190919050506100a6565b005b341561008857600080fd5b610090
-            //                             610113565b6040518082815260200191505060405180910390f35b6000809054906101000a900473ffffffffffffffff
-            //                             ffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffff
-            //                             ffffffffffffffffff1614151561010157600080fd5b81600181905550806002819055505050565b6000600254600154
-            //                             019050905600a165627a7a72305820b12ed026398b4a1bfb98e3b878bd9a65d065b5a9d76466f8e9b08d3205909ad80029")
-            _byteCode = element.GetElementProperty("BYTE_CODE");
 
             // Smart contract ABI ([{""constant"":false,""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},
             //                      {""name"":""washingMachineConsumption"",""type"":""int256""}],""name"":""saveConsumptions"",""outputs"":[],
