@@ -1,6 +1,4 @@
 using CommonInterfaces;
-using Nethereum.Geth;
-using Nethereum.RPC.Eth.DTOs;
 using System;
 using System.Collections;
 using System.IO;
@@ -8,6 +6,8 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
+using Nethereum.Web3;
 
 namespace ZenScFunction
 {
@@ -46,16 +46,16 @@ namespace ZenScFunction
 
             // Sender address. ("0x9812db3e6c072a9731267485bd1ce075ae11e6a8")
             _senderAddress = element.GetElementProperty("SENDER_ADDRESS");
-            
+
             // Sender password. ("password")
             _password = element.GetElementProperty("SENDER_PASSWORD");
 
             // How much time will account be unlocked in seconds. (120)
             _unlockAccountDuration = Convert.ToInt32(element.GetElementProperty("UNLOCK_DURATION"));
-            
+
             // Smart contract address ("0x97a93e68fa58513facb2b702a97597cab97afd6f") 
             _contractAddress = element.GetElementProperty("SMART_CONTRACT_ADDRESS");
-            
+
             // Smart contract ABI ([{""constant"":false,""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},
             //                      {""name"":""washingMachineConsumption"",""type"":""int256""}],""name"":""saveConsumptions"",""outputs"":[],
             //                      ""payable"":false,""stateMutability"":""nonpayable"",""type"":""function""},{""constant"":false,""inputs"":[],
@@ -64,19 +64,19 @@ namespace ZenScFunction
             //                      {""name"":""washingMachineConsumption"",""type"":""int256""}],""payable"":false,""stateMutability"":""nonpayable"",
             //                      ""type"":""constructor""}])
             _abi = element.GetElementProperty("ABI");
-            
+
             // Name of smart contract function to be called ("getConsumptions")
             _functionName = element.GetElementProperty("FUNCTION_NAME");
 
             // Type that contract function returns ("int")
-            _functionResultType= element.GetElementProperty("FUNCTION_RESULT_TYPE");
-            
+            _functionResultType = element.GetElementProperty("FUNCTION_RESULT_TYPE");
+
             // Parse result tags (<result>Element Id</result>) defined by user and dynamically create assembly that will query element results.
             InitializeScript(elements, element);
         }
         #endregion
         #endregion
-        
+
         #region IZenAction Implementations
         #region Properties
         #region ID
@@ -130,19 +130,24 @@ namespace ZenScFunction
                     element.LastResultBoxed = ExecuteContractWrapper<UInt16>(args);
                     break;
 
+                case "uint64":
+                case "uint256":
+                    element.LastResultBoxed = ExecuteContractWrapper<UInt64>(args);
+                    break;
+
                 case "int64":
+                case "int256":
                     element.LastResultBoxed = ExecuteContractWrapper<Int64>(args);
                     break;
 
                 case "int":
-                    element.LastResultBoxed = ExecuteContractWrapper<int>(args);
+                    element.LastResultBoxed = ExecuteContractWrapper<uint>(args);
                     break;
 
                 case "string":
                     element.LastResultBoxed = ExecuteContractWrapper<string>(args);
                     break;
             }
-
             element.IsConditionMet = true;
         }
         #endregion
@@ -160,12 +165,12 @@ namespace ZenScFunction
 
         async Task<T> ExecuteContract<T>(params object[] values)
         {
-            var web3 = new Web3.Web3(_providerUrl);
+            var web3 = new Web3(_providerUrl);
             var unlockAccountResult = await web3.Personal.UnlockAccount.SendRequestAsync(_senderAddress, _password, _unlockAccountDuration);
-            return await web3.Eth.GetContract(_abi, _contractAddress).GetFunction(_functionName).CallAsync<T>(values);
+            return await web3.Eth.GetContract(ZenCsScriptCore.Decode(_abi), _contractAddress).GetFunction(_functionName).CallAsync<T>(values);
         }
         #endregion
-       
+
         #region GetSmartContractArgs
         object[] GetSmartContractArgs()
         {
@@ -173,13 +178,13 @@ namespace ZenScFunction
             for (int i = 0; i < _scripts.ScriptDoc.DocumentNode.Descendants("code").Count(); i++)
                 args[i] = _scripts.ZenCsScript.RunCustomCode(_scripts.ScriptDoc.DocumentNode
                                                                               .Descendants("code").ElementAt(i).Attributes["id"].Value);
-            
+
             return args;
         }
         #endregion
 
         #region InitializeScript
-        // Parse "result" tags and create assembly for dynamically getting results from elements, that are then input args to smart contract function
+        // Parse "result" tags and create assembly for dynamically getting results from elements, that are then input args to smart contract function 
         void InitializeScript(Hashtable elements, IPlugin element)
         {
             lock (_syncCsScript)
@@ -187,11 +192,14 @@ namespace ZenScFunction
                 if (_scripts == null)
                 {
                     string sFunctions = string.Empty;
-                    foreach (string args in Regex.Split(element.GetElementProperty("CONTRACT_PARAMS"), "#100#"))
-                        sFunctions += ZenCsScriptCore.GetFunction("return " + elements + ";");
-
-                    _scripts = ZenCsScriptCore.Initialize(sFunctions, elements, element, 
-                               Path.Combine("tmp", "SmartContractFunction", element.ID + ".zen"), null, element.GetElementProperty("PRINT_CODE") == "1");
+                    foreach (string args in Regex.Split(ZenCsScriptCore.Decode(element.GetElementProperty("SCFUNCTION_PARAMETERS")), "¨"))
+                    {
+                        if (!string.IsNullOrEmpty(args))
+                            sFunctions += ZenCsScriptCore.GetFunction("return " + args + ";");
+                    }
+                    _scripts = ZenCsScriptCore.Initialize(sFunctions, elements, element,
+                                                        Path.Combine("tmp", "SmartContractFunction", element.ID + ".zen"),
+                                                        ParentBoard, element.GetElementProperty("PRINT_CODE") == "1");
                 }
             }
         }
