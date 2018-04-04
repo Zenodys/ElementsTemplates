@@ -9,6 +9,9 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Nethereum.Hex.HexTypes;
+using Nethereum.Web3.Accounts;
+using Nethereum.KeyStore;
+using Nethereum.Hex.HexConvertors.Extensions;
 
 namespace ZenScTransaction
 {
@@ -22,15 +25,14 @@ namespace ZenScTransaction
     public class ZenScTransaction : IZenAction, IZenNodeInit
     {
         #region Fields
-        string _senderAddress;
-        string _password;
         string _abi;
         string _contractAddress;
         string _functionName;
         string _providerUrl;
         string _defaultGas;
         string _messageValue;
-        int _unlockAccountDuration;
+        string _privateKey;
+        string _address;
         ZenCsScriptData _scripts;
         object _syncCsScript = new object();
         #endregion
@@ -50,16 +52,9 @@ namespace ZenScTransaction
             _messageValue = element.GetElementProperty("MESSAGE_VALUE");
 
             // Default gas value. ("290000") 
-            _defaultGas = element.GetElementProperty("DEFAUT_GAS");
-
-            // Transaction sender address. ("0x9812db3e6c072a9731267485bd1ce075ae11e6a8")
-            _senderAddress = element.GetElementProperty("SENDER_ADDRESS");
-
-            // Transaction sender password. ("password")
-            _password = element.GetElementProperty("SENDER_PASSWORD");
-
-            // How much time will account be unlocked in seconds. (120)
-            _unlockAccountDuration = Convert.ToInt32(element.GetElementProperty("UNLOCK_DURATION"));
+            _defaultGas = string.IsNullOrEmpty(element.GetElementProperty("DEFAUT_GAS")) ? 
+                        "290000" : 
+                        element.GetElementProperty("DEFAUT_GAS");
 
             // Smart contract address ("0x97a93e68fa58513facb2b702a97597cab97afd6f") 
             _contractAddress = element.GetElementProperty("SMART_CONTRACT_ADDRESS");
@@ -71,10 +66,16 @@ namespace ZenScTransaction
             //                      ""stateMutability"":""nonpayable"",""type"":""function""},{""inputs"":[{""name"":""tvConsumption"",""type"":""int256""},
             //                      {""name"":""washingMachineConsumption"",""type"":""int256""}],""payable"":false,""stateMutability"":""nonpayable"",
             //                      ""type"":""constructor""}])
-            _abi = element.GetElementProperty("ABI");
+            _abi = ZenCsScriptCore.Decode(element.GetElementProperty("ABI"));
 
             // Name of smart contract function to be called ("saveConsumptions")
             _functionName = element.GetElementProperty("FUNCTION_NAME");
+
+            // Get private key from keystore file
+            var json = File.OpenText(element.GetElementProperty("KEYSTORE_FILE")).ReadToEnd();
+            var service = new KeyStoreService();
+            _privateKey = service.DecryptKeyStoreFromJson(element.GetElementProperty("KEYSTORE_FILE_PASSWORD"), json).ToHex();
+            _address = service.GetAddressFromKeyStore(json);
 
             // Parse result tags (<result>Element Id</result>) defined by user and dynamically create assembly that will query element results.
             InitializeScript(elements, element);
@@ -120,12 +121,9 @@ namespace ZenScTransaction
         #region SendTransactionToContract
         async Task<string> SendTransactionToContract(params object[] values)
         {
-            var web3 = new Web3(_providerUrl);
-
-            var unlockAccountResult = await web3.Personal.UnlockAccount.SendRequestAsync(_senderAddress, _password, _unlockAccountDuration);
-
+            Web3 web3 = new Nethereum.Geth.Web3Geth(new Account(_privateKey), _providerUrl);
             var transactionHash = await web3.Eth.GetContract(_abi, _contractAddress).GetFunction(_functionName)
-                                        .SendTransactionAsync(_senderAddress, new HexBigInteger(BigInteger.Parse(_defaultGas)),
+                                        .SendTransactionAsync(_address, new HexBigInteger(BigInteger.Parse(_defaultGas)),
                                         new HexBigInteger(BigInteger.Parse(_messageValue)), values);
 
             var receipt = await web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(transactionHash);
@@ -160,9 +158,11 @@ namespace ZenScTransaction
                 if (_scripts == null)
                 {
                     string sFunctions = string.Empty;
-                    foreach (string args in Regex.Split(element.GetElementProperty("CONTRACT_PARAMS"), "#100#"))
-                        sFunctions += ZenCsScriptCore.GetFunction("return " + elements + ";");
-
+                    foreach (string args in Regex.Split(ZenCsScriptCore.Decode(element.GetElementProperty("SCTRANSACTION_PARAMETERS")), "¨"))
+                    {
+                        if (!string.IsNullOrEmpty(args))
+                            sFunctions += ZenCsScriptCore.GetFunction("return " + args + ";");
+                    }
                     _scripts = ZenCsScriptCore.Initialize(sFunctions, elements, element,
                                                         Path.Combine("tmp", "SmartContractTransaction", element.ID + ".zen"),
                                                         ParentBoard, element.GetElementProperty("PRINT_CODE") == "1");
