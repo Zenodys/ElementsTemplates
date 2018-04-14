@@ -1,16 +1,14 @@
 ﻿using CommonInterfaces;
-using NetMQ.Sockets;
-using NetMQ;
+using Nethereum.Signer;
+using Nethereum.Web3;
 using System;
 using System.Collections;
-using System.Threading;
-using Newtonsoft.Json;
-using Nethereum.Web3;
-using System.Collections.Generic;
-using System.Text;
-using System.Security.Cryptography;
-using Nethereum.Signer;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
 
 namespace ZenLicenceChecker
 {
@@ -37,8 +35,8 @@ namespace ZenLicenceChecker
         IElement _element;
         #endregion
 
-        #region _serverUrl
-        string _serverUrl;
+        #region _serverPort
+        int _serverPort;
         #endregion
 
         #region _contractAddress
@@ -71,7 +69,7 @@ namespace ZenLicenceChecker
         #region OnElementInit
         public void OnElementInit(Hashtable elements, IElement element)
         {
-            _serverUrl = element.GetElementProperty("SERVER_URL");
+            _serverPort = Convert.ToInt32(element.GetElementProperty("SERVER_PORT"));
             _ethProviderUrl = element.GetElementProperty("ETH_PROVIDER_URL");
             _ownerAddress = element.GetElementProperty("OWNER_ADDRESS");
             _ownerPassword = element.GetElementProperty("OWNER_PASSWORD");
@@ -114,6 +112,7 @@ namespace ZenLicenceChecker
         #endregion
 
         #region Private functions
+        #region Decrypt
         string Decrypt(byte[] encryptedData)
         {
             string decrpytedText = string.Empty;
@@ -125,71 +124,91 @@ namespace ZenLicenceChecker
             }
             return decrpytedText;
         }
+        #endregion
+
+        #region GetRequestBuffer
+        byte[] GetRequestBuffer(Stream stream)
+        {
+            byte[] request = null;
+            byte[] buffer = new byte[16 * 1024];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                int read;
+                while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    ms.Write(buffer, 0, read);
+                }
+                request = ms.ToArray();
+            }
+            return request;
+        }
+        #endregion
+
         #region WaitRequest
         async void WaitRequest()
         {
-            using (var server = new StreamSocket())
+            TcpListener server = new TcpListener(IPAddress.Parse("127.0.0.1"), _serverPort);
+            server.Start();
+            Console.WriteLine("Start listening for asset requests on port {0}.", _serverPort);
+
+            while (true)
             {
-                server.Bind(_serverUrl);
-                Console.WriteLine("Listening for asset requests on {0}", _serverUrl);
+                byte[] rawRequest = null;
+                string clientIP = string.Empty;
 
-                while (true)
+                using (TcpClient client = server.AcceptTcpClient())
                 {
-                    NetMQMessage arr = server.ReceiveMultipartMessage();
-                    Console.WriteLine("Request received. Frame count : {0}", arr.FrameCount);
-
-                    if (arr.FrameCount == FRAME_CNT)
-                    {
-                        int licenceIdLength = BitConverter.ToInt32(arr[1].Buffer, 0 * LENGTH_INFOS_SIZE);
-                        int signatureLength = BitConverter.ToInt32(arr[1].Buffer, 1 * LENGTH_INFOS_SIZE);
-                        int publicKeyLength = BitConverter.ToInt32(arr[1].Buffer, 2 * LENGTH_INFOS_SIZE);
-                        int callbackUrlLength = BitConverter.ToInt32(arr[1].Buffer, 3 * LENGTH_INFOS_SIZE);
-
-                        byte[] licenceIdRaw = new byte[licenceIdLength];
-                        byte[] signatureRaw = new byte[signatureLength];
-                        byte[] publicKeyRaw = new byte[publicKeyLength];
-                        byte[] callbackUrlRaw = new byte[callbackUrlLength];
-
-
-                        Array.Copy(arr[1].Buffer, 4 * LENGTH_INFOS_SIZE, licenceIdRaw, 0, licenceIdLength);
-
-                        Array.Copy(arr[1].Buffer, 4 * LENGTH_INFOS_SIZE + licenceIdLength, signatureRaw,
-                                   0, signatureLength);
-
-                        Array.Copy(arr[1].Buffer, 4 * LENGTH_INFOS_SIZE + licenceIdLength + signatureLength,
-                            publicKeyRaw, 0, publicKeyLength);
-
-
-                        Array.Copy(arr[1].Buffer, 4 * LENGTH_INFOS_SIZE + licenceIdLength + signatureLength + publicKeyLength,
-                            callbackUrlRaw, 0, callbackUrlLength);
-
-                        string licenceId = Encoding.Default.GetString(licenceIdRaw);
-                        // Decrypt signed licenceId with asset owner private key
-                        string signature = Decrypt(signatureRaw);
-                        string customerPubKey = Encoding.Default.GetString(publicKeyRaw);
-                        string callbackUrl = Encoding.Default.GetString(callbackUrlRaw);
-
-                        // Get address from validation process
-                        var address = new MessageSigner().HashAndEcRecover(licenceId, signature);
-
-                        var unlockAccountResult = await _web3.Personal.UnlockAccount.SendRequestAsync(_ownerAddress,
-                                                        _ownerPassword, _unlockDuration);
-
-                        // Validate smart contract if provided address has access to asset which belongs to current licenceId
-                        bool isLicenceValid = await _web3.Eth.GetContract(ABI, _contractAddress)
-                                                    .GetFunction(LICENCE_CHECK_FUNCTION)
-                                                    .CallAsync<bool>(licenceId, address);
-
-                        Console.WriteLine("Licence : {0} ; valid : {1}", licenceId, isLicenceValid.ToString());
-
-                        // If verification succed, trigger element complete event and save licenceId, 
-                        // customer public key and callback url
-                        // Parameters will be needed in other elements
-                        if (isLicenceValid && ModuleEvent != null)
-                            ModuleEvent(this, new ModuleEventData(_element.ID, string.Empty, string.Concat(licenceId, ";",
-                                                                                    customerPubKey, ";", callbackUrl)));
-                    }
+                    NetworkStream stream = client.GetStream();
+                    rawRequest = GetRequestBuffer(stream);
+                    clientIP = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
+                    client.Close();
                 }
+
+                int licenceIdLength = BitConverter.ToInt32(rawRequest, 0 * LENGTH_INFOS_SIZE);
+                int signatureLength = BitConverter.ToInt32(rawRequest, 1 * LENGTH_INFOS_SIZE);
+                int publicKeyLength = BitConverter.ToInt32(rawRequest, 2 * LENGTH_INFOS_SIZE);
+                int callbackUrlLength = BitConverter.ToInt32(rawRequest, 3 * LENGTH_INFOS_SIZE);
+
+                byte[] licenceIdRaw = new byte[licenceIdLength];
+                byte[] signatureRaw = new byte[signatureLength];
+                byte[] publicKeyRaw = new byte[publicKeyLength];
+                byte[] callbackPortRaw = new byte[callbackUrlLength];
+
+                Array.Copy(rawRequest, 4 * LENGTH_INFOS_SIZE, licenceIdRaw, 0, licenceIdLength);
+
+                Array.Copy(rawRequest, 4 * LENGTH_INFOS_SIZE + licenceIdLength, signatureRaw,
+                           0, signatureLength);
+
+                Array.Copy(rawRequest, 4 * LENGTH_INFOS_SIZE + licenceIdLength + signatureLength,
+                    publicKeyRaw, 0, publicKeyLength);
+
+                Array.Copy(rawRequest, 4 * LENGTH_INFOS_SIZE + licenceIdLength + signatureLength + publicKeyLength,
+                    callbackPortRaw, 0, callbackUrlLength);
+
+                string licenceId = Encoding.Default.GetString(licenceIdRaw);
+                // Decrypt signed licenceId with asset owner private key
+                string signature = Decrypt(signatureRaw);
+                string customerPubKey = Encoding.Default.GetString(publicKeyRaw);
+                string callbackPort = Encoding.Default.GetString(callbackPortRaw);
+
+                // Get address from validation process
+                var address = new MessageSigner().HashAndEcRecover(licenceId, signature);
+
+                var unlockAccountResult = await _web3.Personal.UnlockAccount.SendRequestAsync(_ownerAddress,
+                                                _ownerPassword, _unlockDuration);
+
+                // Validate smart contract if provided address has access to asset which belongs to current licenceId
+                bool isLicenceValid = await _web3.Eth.GetContract(ABI, _contractAddress)
+                                            .GetFunction(LICENCE_CHECK_FUNCTION)
+                                            .CallAsync<bool>(licenceId, address);
+
+                Console.WriteLine("Licence: {0}; valid: {1}, ip: {2}", licenceId, isLicenceValid.ToString(), clientIP);
+                // If verification succed, trigger element complete event and save licenceId, 
+                // customer public key and callback url
+                // Parameters will be needed in other elements
+                if (isLicenceValid && ModuleEvent != null)
+                    ModuleEvent(this, new ModuleEventData(_element.ID, string.Empty, string.Concat(licenceId, ";",
+                                                                            customerPubKey, ";", clientIP, ";", callbackPort)));
             }
         }
         #endregion

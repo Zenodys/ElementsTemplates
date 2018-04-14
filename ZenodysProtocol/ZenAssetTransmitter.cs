@@ -1,11 +1,10 @@
 ﻿using CommonInterfaces;
 using Nethereum.Web3;
-using NetMQ;
-using NetMQ.Sockets;
 using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml.Linq;
@@ -50,9 +49,13 @@ namespace ZenAssetTransmitter
         const int PUB_KEY_POSITION = 1;
         #endregion
 
-        #region CALLBACK_URL_POSITION
-        const int CALLBACK_URL_POSITION = 2;
+        #region CALLBACK_IP_POSITION
+        const int CALLBACK_IP_POSITION = 2;
         #endregion  
+
+        #region CALLBACK_PORT_POSITION
+        const int CALLBACK_PORT_POSITION = 3;
+        #endregion
 
         #region CONFIRM_TRANSACTION_FUNCTION
         const string CONFIRM_TRANSACTION_FUNCTION = "confirmTransaction";
@@ -115,7 +118,7 @@ namespace ZenAssetTransmitter
         public void ExecuteAction(Hashtable elements, IElement element, IElement iAmStartedYou)
         {
             EncryptAndTransmit(element, elements);
-            ConfirmTransaction(element, elements);
+            //ConfirmTransaction(element, elements);
         }
         #endregion
         #endregion
@@ -130,7 +133,6 @@ namespace ZenAssetTransmitter
             {
                 random.GetBytes(bytes);
             }
-
             return bytes;
         }
         #endregion
@@ -144,7 +146,6 @@ namespace ZenAssetTransmitter
                 rsa.FromXmlString(keyXml);
                 encrypted = rsa.Encrypt(data, true);
             }
-
             return encrypted;
         }
         #endregion
@@ -259,7 +260,7 @@ namespace ZenAssetTransmitter
             SetTypeAndResult(element, elements, ref plainResult, ref systemType);
             using (AesCryptoServiceProvider aes = new AesCryptoServiceProvider())
             {
-                // aes.KeySize = 128;
+                //aes.KeySize = 128;
                 aes.Key = encryptionKey;
                 aes.IV = encryptionIV;
                 ICryptoTransform encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
@@ -295,35 +296,47 @@ namespace ZenAssetTransmitter
             byte[] cipherBytes = null;
             Encrypt(element, elements, ref metadata, ref cipherBytes);
 
-            using (var client = new StreamSocket())
+            byte[] metadataLength = BitConverter.GetBytes(metadata.Length);
+            byte[] final = new byte[metadataLength.Length + metadata.Length + cipherBytes.Length];
+
+            // Add metadata length info
+            Buffer.BlockCopy(metadataLength,
+                0,
+                final,
+                0,
+                metadataLength.Length * sizeof(byte));
+
+            // Add metadata
+            Buffer.BlockCopy(metadata,
+                0,
+                final,
+                metadataLength.Length * sizeof(byte),
+                metadata.Length * sizeof(byte));
+
+            // Add asset
+            Buffer.BlockCopy(cipherBytes,
+                0,
+                final,
+                metadataLength.Length * sizeof(byte) + metadata.Length * sizeof(byte),
+                cipherBytes.Length * sizeof(byte));
+
+            try
             {
-                client.Connect(GetLicenceCheckResult(element, elements, CALLBACK_URL_POSITION));
-
-                byte[] metadataLength = BitConverter.GetBytes(metadata.Length);
-                byte[] final = new byte[metadataLength.Length + metadata.Length + cipherBytes.Length];
-
-                // Add metadata length info
-                Buffer.BlockCopy(metadataLength,
-                    0,
-                    final,
-                    0,
-                    metadataLength.Length * sizeof(byte));
-
-                // Add metadata
-                Buffer.BlockCopy(metadata,
-                    0,
-                    final,
-                    metadataLength.Length * sizeof(byte),
-                    metadata.Length * sizeof(byte));
-
-                // Add asset
-                Buffer.BlockCopy(cipherBytes,
-                    0,
-                    final,
-                    metadataLength.Length * sizeof(byte) + metadata.Length * sizeof(byte),
-                    cipherBytes.Length * sizeof(byte));
-
-                client.SendMoreFrame(client.Options.Identity).SendFrame(final);
+                using (TcpClient client = new TcpClient(GetLicenceCheckResult(element, elements, CALLBACK_IP_POSITION),
+                                                        Convert.ToInt32(GetLicenceCheckResult(element, elements, CALLBACK_PORT_POSITION))))
+                {
+                    NetworkStream stream = client.GetStream();
+                    stream.Write(final, 0, final.Length);
+                    client.Close();
+                }
+            }
+            catch (ArgumentNullException e)
+            {
+                Console.WriteLine("ArgumentNullException: {0}", e);
+            }
+            catch (SocketException e)
+            {
+                Console.WriteLine("SocketException: {0}", e);
             }
         }
         #endregion
@@ -341,10 +354,5 @@ namespace ZenAssetTransmitter
         #endregion
         #endregion
     }
-
-
-
-
-
 }
 

@@ -1,13 +1,11 @@
 ﻿using CommonInterfaces;
 using Nethereum.Signer;
 using Nethereum.Web3;
-using NetMQ;
-using NetMQ.Sockets;
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -53,8 +51,8 @@ namespace ZenAssetReceiver
         Web3 _web3;
         #endregion
 
-        #region _serverUrl
-        string _serverUrl;
+        #region _localPort
+        int _localPort;
         #endregion
 
         #region _licenceId
@@ -69,8 +67,12 @@ namespace ZenAssetReceiver
         string _ethProviderUrl;
         #endregion
 
-        #region _callbackUrl
-        string _callbackUrl;
+        #region _serverIp
+        string _serverIp;
+        #endregion
+
+        #region _serverPort
+        int _serverPort;
         #endregion
 
         #region _ownerAddress
@@ -94,9 +96,10 @@ namespace ZenAssetReceiver
         #region OnElementInit
         public void OnElementInit(Hashtable eleemnts, IElement element)
         {
-            _serverUrl = element.GetElementProperty("SERVER_URL");
+            _serverIp = element.GetElementProperty("SERVER_IP");
+            _serverPort = Convert.ToInt32(element.GetElementProperty("SERVER_PORT"));
             _privateKey = element.GetElementProperty("PRIVATE_KEY");
-            _callbackUrl = element.GetElementProperty("CALLBACK_URL");
+            _localPort = Convert.ToInt32(element.GetElementProperty("LOCAL_PORT"));
             _ethProviderUrl = element.GetElementProperty("ETH_PROVIDER_URL");
             _ownerAddress = element.GetElementProperty("OWNER_ADDRESS");
             _ownerPassword = element.GetElementProperty("OWNER_PASSWORD");
@@ -156,15 +159,15 @@ namespace ZenAssetReceiver
         #endregion
 
         #region ExtractMetadataAndAsset
-        void ExtractMetadataAndAsset(NetMQMessage rawAsset, ref string metadata, ref byte[] cyperBytes)
+        void ExtractMetadataAndAsset(byte[] rawAsset, ref string metadata, ref byte[] cyperBytes)
         {
-            int metadataLength = BitConverter.ToInt32(rawAsset[ASSET_ENVELOPE_POSITION].Buffer, 0);
+            int metadataLength = BitConverter.ToInt32(rawAsset, 0);
             byte[] rawMetadata = new byte[metadataLength];
-            Array.Copy(rawAsset[ASSET_ENVELOPE_POSITION].Buffer, METADATA_LENGTH_INFO_SIZE, rawMetadata, 0, metadataLength);
+            Array.Copy(rawAsset, METADATA_LENGTH_INFO_SIZE, rawMetadata, 0, metadataLength);
             metadata = Encoding.Default.GetString(rawMetadata);
 
-            cyperBytes = new byte[rawAsset[ASSET_ENVELOPE_POSITION].Buffer.Length - METADATA_LENGTH_INFO_SIZE - metadataLength];
-            Array.Copy(rawAsset[ASSET_ENVELOPE_POSITION].Buffer, METADATA_LENGTH_INFO_SIZE + metadataLength, cyperBytes, 0, cyperBytes.Length);
+            cyperBytes = new byte[rawAsset.Length - METADATA_LENGTH_INFO_SIZE - metadataLength];
+            Array.Copy(rawAsset, METADATA_LENGTH_INFO_SIZE + metadataLength, cyperBytes, 0, cyperBytes.Length);
         }
         #endregion
 
@@ -200,119 +203,58 @@ namespace ZenAssetReceiver
         {
             string metadata = string.Empty;
             byte[] cyperBytes = null;
-
-            using (var server = new StreamSocket())
+            byte[] rawAsset = null;
+            try
             {
-                server.Options.ReceiveHighWatermark = 1000;
-                server.Bind(_callbackUrl);
-                NetMQMessage rawAsset = server.ReceiveMultipartMessage();
-                
-                // Get metadata and encrypted asset from byte array
-                ExtractMetadataAndAsset(rawAsset, ref metadata, ref cyperBytes);
-                DecryptAssetAndSetElementResult(metadata, cyperBytes, element);
-            }
-        }
-        #endregion
+                TcpListener server = new TcpListener(IPAddress.Parse("127.0.0.1"), _localPort);
+                server.Start();
 
-        #region SignAndEncryptSignature
-        byte[] EncryptedSignature
-        {
-            get
-            {
-                byte[] encryptedSignature;
-
-                // Sign licenceId with RSA private key
-                var signer = new MessageSigner();
-                var signature = signer.HashAndSign(_licenceId, _privateKey);
-
-                // Encrypt signature with seller's public key
-                using (var rsa = new RSACryptoServiceProvider(2048))
+                using (TcpClient client = server.AcceptTcpClient())
                 {
-                    try
+                    NetworkStream stream = client.GetStream();
+
+                    byte[] buffer = new byte[16 * 1024];
+                    using (MemoryStream ms = new MemoryStream())
                     {
-                        rsa.FromXmlString(GetSellerPublicKey().Result);
-                        encryptedSignature = rsa.Encrypt(Encoding.ASCII.GetBytes(signature), true);
+                        int read;
+                        while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            ms.Write(buffer, 0, read);
+                        }
+                        rawAsset = ms.ToArray();
                     }
-                    finally
-                    {
-                        rsa.PersistKeyInCsp = false;
-                    }
+                    client.Close();
                 }
-                return encryptedSignature;
+                server.Stop();
             }
+            catch (SocketException e)
+            {
+                Console.WriteLine("SocketException: {0}", e);
+            }
+
+            ExtractMetadataAndAsset(rawAsset, ref metadata, ref cyperBytes);
+            DecryptAssetAndSetElementResult(metadata, cyperBytes, element);
         }
         #endregion
 
         #region SendAssetRequest
         void SendAssetRequest()
         {
-            using (var client = new StreamSocket())
+            try
             {
-                client.Connect(_serverUrl);
-
-                byte[] licenceId = Encoding.UTF8.GetBytes(_licenceId);
-                byte[] licenceIdLength = BitConverter.GetBytes(licenceId.Length);
-
-                byte[] signature = EncryptedSignature;
-                byte[] signatureLength = BitConverter.GetBytes(signature.Length);
-
-                byte[] publicKey = File.ReadAllBytes(@"keystore/public.xml");
-                byte[] publicKeyLength = BitConverter.GetBytes(publicKey.Length);
-
-                byte[] callbackUrl = Encoding.UTF8.GetBytes(_callbackUrl);
-                byte[] callbackUrlLength = BitConverter.GetBytes(callbackUrl.Length);
-
-                byte[] final = new byte[licenceId.Length + signature.Length + publicKey.Length + callbackUrl.Length + 16];
-
-                Buffer.BlockCopy(licenceIdLength,
-                    0,
-                    final,
-                    0,
-                    licenceIdLength.Length * sizeof(byte));
-
-                Buffer.BlockCopy(signatureLength,
-                    0,
-                    final,
-                    4,
-                    signatureLength.Length * sizeof(byte));
-
-                Buffer.BlockCopy(publicKeyLength,
-                    0,
-                    final,
-                    8,
-                    signatureLength.Length * sizeof(byte));
-
-                Buffer.BlockCopy(callbackUrlLength,
-                    0,
-                    final,
-                    12,
-                    publicKeyLength.Length * sizeof(byte));
-
-                Buffer.BlockCopy(licenceId,
-                    0,
-                    final,
-                    16,
-                    licenceId.Length * sizeof(byte));
-
-                Buffer.BlockCopy(signature,
-                    0,
-                    final,
-                    16 + licenceId.Length * sizeof(byte),
-                    signature.Length * sizeof(byte));
-
-                Buffer.BlockCopy(publicKey,
-                    0,
-                    final,
-                    16 + licenceId.Length * sizeof(byte) + signature.Length * sizeof(byte),
-                    publicKey.Length * sizeof(byte));
-
-                Buffer.BlockCopy(callbackUrl,
-                    0,
-                    final,
-                    16 + licenceId.Length * sizeof(byte) + signature.Length * sizeof(byte) + publicKey.Length * sizeof(byte),
-                    callbackUrl.Length * sizeof(byte));
-
-                client.SendMoreFrame(client.Options.Identity).SendFrame(final);
+                TcpClient client = new TcpClient(_serverIp, _serverPort);
+                NetworkStream stream = client.GetStream();
+                byte[] assetBuffer = AssetBuffer;
+                stream.Write(assetBuffer, 0, assetBuffer.Length);
+                client.Close();
+            }
+            catch (ArgumentNullException e)
+            {
+                Console.WriteLine("ArgumentNullException: {0}", e);
+            }
+            catch (SocketException e)
+            {
+                Console.WriteLine("SocketException: {0}", e);
             }
         }
         #endregion
@@ -340,6 +282,109 @@ namespace ZenAssetReceiver
             }
 
             return decrypted;
+        }
+        #endregion
+        #endregion
+
+        #region Properties
+        #region AssetBuffer
+        byte[] AssetBuffer
+        {
+            get
+            {
+                byte[] licenceId = Encoding.UTF8.GetBytes(_licenceId);
+                byte[] licenceIdLength = BitConverter.GetBytes(licenceId.Length);
+
+                byte[] signature = EncryptedSignature;
+                byte[] signatureLength = BitConverter.GetBytes(signature.Length);
+
+                byte[] publicKey = File.ReadAllBytes(@"keystore/public.xml");
+                byte[] publicKeyLength = BitConverter.GetBytes(publicKey.Length);
+
+                byte[] callbackPort = Encoding.UTF8.GetBytes(_localPort.ToString());
+                byte[] callbackPortLength = BitConverter.GetBytes(callbackPort.Length);
+
+                byte[] assetBuffer = new byte[licenceId.Length + signature.Length + publicKey.Length + callbackPort.Length + 16];
+
+                Buffer.BlockCopy(licenceIdLength,
+                    0,
+                    assetBuffer,
+                    0,
+                    licenceIdLength.Length * sizeof(byte));
+
+                Buffer.BlockCopy(signatureLength,
+                    0,
+                    assetBuffer,
+                    4,
+                    signatureLength.Length * sizeof(byte));
+
+                Buffer.BlockCopy(publicKeyLength,
+                    0,
+                    assetBuffer,
+                    8,
+                    signatureLength.Length * sizeof(byte));
+
+                Buffer.BlockCopy(callbackPortLength,
+                    0,
+                    assetBuffer,
+                    12,
+                    publicKeyLength.Length * sizeof(byte));
+
+                Buffer.BlockCopy(licenceId,
+                    0,
+                    assetBuffer,
+                    16,
+                    licenceId.Length * sizeof(byte));
+
+                Buffer.BlockCopy(signature,
+                    0,
+                    assetBuffer,
+                    16 + licenceId.Length * sizeof(byte),
+                    signature.Length * sizeof(byte));
+
+                Buffer.BlockCopy(publicKey,
+                    0,
+                    assetBuffer,
+                    16 + licenceId.Length * sizeof(byte) + signature.Length * sizeof(byte),
+                    publicKey.Length * sizeof(byte));
+
+                Buffer.BlockCopy(callbackPort,
+                    0,
+                    assetBuffer,
+                    16 + licenceId.Length * sizeof(byte) + signature.Length * sizeof(byte) + publicKey.Length * sizeof(byte),
+                    callbackPort.Length * sizeof(byte));
+
+                return assetBuffer;
+            }
+        }
+        #endregion
+
+        #region EncryptedSignature
+        byte[] EncryptedSignature
+        {
+            get
+            {
+                byte[] encryptedSignature;
+
+                // Sign licenceId with RSA private key
+                var signer = new MessageSigner();
+                var signature = signer.HashAndSign(_licenceId, _privateKey);
+
+                // Encrypt signature with seller's public key
+                using (var rsa = new RSACryptoServiceProvider(2048))
+                {
+                    try
+                    {
+                        rsa.FromXmlString(GetSellerPublicKey().Result);
+                        encryptedSignature = rsa.Encrypt(Encoding.ASCII.GetBytes(signature), true);
+                    }
+                    finally
+                    {
+                        rsa.PersistKeyInCsp = false;
+                    }
+                }
+                return encryptedSignature;
+            }
         }
         #endregion
         #endregion
